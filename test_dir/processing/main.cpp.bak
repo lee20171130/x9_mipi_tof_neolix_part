@@ -1,0 +1,89 @@
+
+#define _CRT_SECURE_NO_WARNINGS
+//#include <sample/spectreSample.hpp>
+//#include <sample/spectreSampleCalc.hpp>
+//#include <thread>
+//#include <processing/processingInternal.hpp>
+//#include <processing/tools/astonTools.hpp>
+extern "C"
+{
+#include <stdlib.h>
+#include <video.h>
+}
+
+#include <sys/time.h>
+
+
+
+#define WIDTH 224
+#define HEIGHT 172
+
+char spectre_buf[WIDTH * HEIGHT * 4 * 4 + 256];
+char gray_buf[WIDTH * HEIGHT * 4 * 4 + 256];
+
+struct exposure {
+	unsigned int x;
+	unsigned int y;
+	unsigned int z;
+};
+int main (int argc, char **argv)
+{
+	struct timeval tv0, tv1;
+	unsigned int time;
+	FILE *fp;
+
+	struct exposure d; 
+	d.x = 0x1F4;
+
+	camera_open("/dev/video0", FMT_TYPE_MULTIFREQ);
+
+	if (argc > 1) {
+	    time = atoi(argv[1]);
+	    //pmd_printf("%d set exposure time (%d)", __LINE__, time);
+	    camera_set_exposure(time);
+	    d.y = time;
+	    d.z = time;
+
+	    fp  = fopen("/system/spectre/sample/Process_Input/input_InExposureTimes.bin", "wb+");
+
+	if (fp == NULL) {
+		//pmd_printf("dnx(%d), fail to open input_InExposureTimes file\n", __LINE__);
+	} else {
+	fwrite(&d, 1, 12, fp);
+            fclose(fp);
+	}
+	}
+
+	spectre_use_single_frame(true);
+	//pmd_printf("dnx(%d), call one", __LINE__);
+
+	gettimeofday(&tv0, NULL);
+	spectre_produce(spectre_buf, gray_buf, WIDTH * HEIGHT * 4 * 4, time);
+
+	gettimeofday(&tv1, NULL);
+	//pmd_printf("dnx(%d), time(%d:%d), gray_buf: 0x%p ", __LINE__,
+//		tv1.tv_sec - tv0.tv_sec, (tv1.tv_usec - tv0.tv_usec),
+//		gray_buf);
+//	spectre_produce(spectre_buf, NULL, WIDTH * HEIGHT * 2);
+
+	fp = fopen("specure_pixels_all.raw", "wb+");
+	if (fp == NULL) {
+		//pmd_printf("dnx(%d), fail to open pixel all file\n", __LINE__);
+	} else {
+
+	fwrite(spectre_buf, 1, WIDTH * HEIGHT * 2 * 4, fp);
+        fclose(fp);
+	}
+
+	fp = fopen("specure_gray_buf.bin", "wb+");
+	if (fp == NULL) {
+		//pmd_printf("dnx(%d), fail to open gay dump file\n", __LINE__);
+	} else {
+
+	fwrite(gray_buf, 1, WIDTH * HEIGHT * 2, fp);
+        fclose(fp);
+	}
+
+	camera_close();
+	return 0;
+}
