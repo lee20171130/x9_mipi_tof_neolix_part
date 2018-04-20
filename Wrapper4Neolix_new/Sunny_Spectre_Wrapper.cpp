@@ -14,7 +14,7 @@ DeviceInfo_t *deviceinfo = NULL;                //mars04 dev class object
 FrameData_t* frame_data = NULL;		   			//指向存储深度数据的缓存,注意它的深度数据是点云的.
 FrameDataRgb_t* frame_data_Rgb = NULL;  		//指向存储彩图数据的缓存
 
-float * pSunnySpectrePCLData = NULL;         //指向sunny_spectre吐出的点云数据,单位:m
+sunnySpectrePCL_t * pSunnySpectrePCLData = NULL;         //指向sunny_spectre吐出的点云数据,单位:m
 DepthPixel_t * pNeolixDepthData = NULL;         //新石器算法需要的深度数据格式.
 short * video_data = NULL;                      //获取相机的YUV数据    
 tofSensorAllData_t tof_sensor_all_data;                //包含Mars04设备中所有有效数据(灰度,彩色,深度).
@@ -204,18 +204,18 @@ void* process_mipitof_data(void* param)
 int sunny_raw2pcl_produce(void)
 {
 	int ret = 0;
-	//为sunny点云数据分配缓存
+	//为sunny点云数据分配缓存,包含点云和depth数据.
 	if (pSunnySpectrePCLData == NULL) {
 		LOGI("%s: malloc for sunny spectre pcl data\n", __func__);
-		pSunnySpectrePCLData=(float*)malloc(sizeof(float)*DEPTHMAP_W*DEPTHMAP_H);
+		pSunnySpectrePCLData=(sunnySpectrePCL_t*)malloc(sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
 		if (NULL == pSunnySpectrePCLData) {
 			LOGI("%s: malloc sunny spectre pcl data fail\n", __func__);
 			return LTOF_ERROR_NO_MEM;
 		}
-		LOGI("[frame_data]w:%d, h:%d, size:%d sum:%d\n", DEPTHMAP_W,DEPTHMAP_H,sizeof(sunnySpectrePCL_t), DEPTHMAP_W*DEPTHMAP_H*4);
+		LOGI("[frame_data]w:%d, h:%d, size:%d sum:%d\n", DEPTHMAP_W,DEPTHMAP_H,sizeof(sunnySpectrePCL_t), DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
 		LOGI("[frame_data]addr:%p, size:%d\n", pSunnySpectrePCLData, sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
 	}
-    memset(pSunnySpectrePCLData,0,sizeof(float)*DEPTHMAP_W*DEPTHMAP_H);
+    memset(pSunnySpectrePCLData,0,sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
 	//为neolix深度数据分配缓存
 	if (pNeolixDepthData == NULL) {
 		LOGI("%s: malloc for neolixdepth data\n", __func__);
@@ -229,7 +229,7 @@ int sunny_raw2pcl_produce(void)
 	memset(pNeolixDepthData,0,sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H); 
 	//调用sunny_spectre
 	spectre_init(exposure_time);
-	spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(float)); 
+	spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t)); 
 	spectre_deinit();
 	//转换为新石器需要的深度数据
 	 static int i,j;
@@ -239,16 +239,16 @@ int sunny_raw2pcl_produce(void)
                 for(j = 0; j<224;j++)
                 {
 				
-					if (pNeolixDepthData != NULL)    
-						pNeolixDepthData[i*224+j] = (DepthPixel_t)(pSunnySpectrePCLData[i*224+j]*1000);  //原生的数据是m,最好转换为mm
-		
+					if (pNeolixDepthData != NULL)  { 
+						pNeolixDepthData[i*224+j] = (DepthPixel_t)((pSunnySpectrePCLData[i*224+j].depth)*1000);  //原生的数据是m,最好转换为mm
+					}	
                }
            }
      
 
 	//对数据统计
-		//tof_sensor_all_data.pPCL = pSunnySpectrePCLData;
-		//tof_sensor_all_data.pcl_data_size = sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H;
+		tof_sensor_all_data.pPCL = pSunnySpectrePCLData;
+		tof_sensor_all_data.pcl_data_size = sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H;
 		tof_sensor_all_data.pDepthData = pNeolixDepthData;
 		tof_sensor_all_data.depth_data_size = sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H;
 		tof_sensor_all_data.pVideoData = video_data;

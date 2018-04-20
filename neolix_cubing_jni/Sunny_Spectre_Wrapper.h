@@ -21,9 +21,20 @@ typedef struct  {
 	float x;
 	float y;
 	float z;
-	float noise;
+	float depth;
 } sunnySpectrePCL_t;
-
+typedef struct {
+	bool isMonoFreq;
+	int expourseTime;
+} tofModeOption_t;
+typedef enum {
+	MODE0_5FPS_1200US = 0,
+	MODE1_10FPS_650US,
+	MODE2_15FPS_850US,
+	MODE3_30FPS_380US,
+	MODE4_45FPS_250US,
+	
+} tofUseScene_t;
 typedef struct {
 	sunnySpectrePCL_t *pPCL;
 	unsigned int pcl_data_size;

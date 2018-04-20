@@ -21,7 +21,7 @@ typedef struct  {
 	float x;
 	float y;
 	float z;
-	float noise;
+	float depth;
 } sunnySpectrePCL_t;
 typedef struct {
 	bool isMonoFreq;

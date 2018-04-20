@@ -27,13 +27,14 @@ static  double internalCoefficient[] = {215.867493,215.867493,111.951950,86.5622
 //主要使用opencv进行转换,如:深度->伪彩 yuv420p->rgb
 static neolix::depthData depthData;
 static neolix::depthData yuvData;
+static neolix::pointcloudData pclData;
 //存储算法建模时候的参数.
 //static double parameter[3] = {0.0};
 //存储算法需要的像素坐标
 static neolix::rect safeZone, measureZone;
 static volatile bool isCubing = false;
 static FrameDataRgb_t 	*pColorImage = NULL;    //指向伪彩色数据,size:w*h*bpp3
-static FrameData_t   	*pPCLData = NULL;     //指向点云数据缓存,size:w*h*bpp12,传递给算法.
+static sunnySpectrePCL_t   	*pPCLData = NULL;   //指向点云数据缓存,size:w*h*bpp12,传递给算法.
 static DepthPixel_t   	*pDepthData = NULL;     //指向深度数据缓存,size:w*h*bpp2,传递给算法.
 static FrameDataRgb_t   *pRGBAData = NULL;      //指向rgb摄像头的数据缓存,size:w*h*bpp4
 
@@ -61,10 +62,9 @@ void getTofDepthDataCb(tofSensorAllData_t& tofSensorAllData)
 	switch (cur_view_mode) {
 	case VIEW_DEPTH_MODE:
 		LOGI("VIEW_DEPTH_MODE\n");
-		DataTmp = depthData;
-		//depthData.data = tofSensorAllData.pDepthData;         //传给算法一帧深度.
+		DataTmp = depthData;      
 		if (NULL != tofSensorAllData.pDepthData)
-			DataTmp.data = tofSensorAllData.pDepthData;
+			DataTmp.data = tofSensorAllData.pDepthData;    //指向wrapper层的缓冲
 		else {
 			LOGE("%s:find nullprt tofSensorAllData.pDepthData!!!!!!\n", __func__);
 			return;
@@ -87,13 +87,13 @@ void getTofDepthDataCb(tofSensorAllData_t& tofSensorAllData)
 	}
 	last_view_mode = cur_view_mode;
 	}
-	//更新点云/深度帧,取一帧给算法.
+	//更新点云/深度帧,取一帧给算法,传递给算法的数据是jni单独malloc的,防止被新的图像帧覆盖.
 	if (!isCubing) {
-		LOGI("the cubing alorg is not running! memcpy the latest frame\n");
+		LOGI("1cddsathe cubing alorg is not running! memcpy the latest frame\n");
 		memcpy(pDepthData, tofSensorAllData.pDepthData, tofSensorAllData.depth_data_size);
-		//memcpy(pPCLData, tofSensorAllData.pPCL, tofSensorAllData.pcl_data_size);
-		//LOGI("center pixel info:%d\n", ((DepthPixel_t *)DataTmp.data)[DataTmp.width * DataTmp.height / 2]);
-		//LOGI("memcpy from [%p]to [%p] OK, size:%d\n", DataTmp.data, pDepthData, tofSensorAllData.depth_data_size);
+		memcpy(pPCLData, tofSensorAllData.pPCL, tofSensorAllData.pcl_data_size);
+		//LOGI("111depth data = %f\n", (tofSensorAllData.pPCL[depthData.width * depthData.height / 2].depth));
+		LOGI("ADDR:%p, LEN:%d\n", tofSensorAllData.pPCL, tofSensorAllData.pcl_data_size);
 	}
 	//更新framebuffer,根据显示需要做转换,比如需要转换为伪彩色.
 	#ifdef JNI_LOG_VERBOSE
@@ -195,7 +195,7 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, connectCamera)
 	fid = (env)->GetFieldID(clazz, "VisibleFrameHeight", "S");
     (env)->SetShortField(dev_obj, fid, devInfo.VisibleFrameHeight);
 	//存储深度数据的区域.如果获得体积,需要用到该数据帧(类型:点云)
-	pPCLData = new FrameData_t[devInfo.DepthFrameHeight*devInfo.DepthFrameWidth];
+	pPCLData = new sunnySpectrePCL_t[devInfo.DepthFrameHeight*devInfo.DepthFrameWidth];
 	if (pPCLData == NULL){
         LOGE("new pPCLData fail\n");
         return false;
@@ -225,6 +225,11 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, connectCamera)
 	depthData.width =  devInfo.DepthFrameWidth;
 	depthData.height = devInfo.DepthFrameHeight;
 	depthData.data = pDepthData;
+	LOGI("	depthData.data:%p",	depthData.data);
+	pclData.width =  devInfo.DepthFrameWidth;
+	pclData.height = devInfo.DepthFrameHeight;
+	pclData.data = pPCLData;
+	LOGI("	pclData.data:%p",	pclData.data);
 	yuvData.width = devInfo.VisibleFrameWidth;
 	yuvData.height = devInfo.VisibleFrameHeight;
 	
@@ -258,13 +263,13 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, disconnectCamera)
 	cur_view_mode = VIEW_VIDEO_MODE; 
 	last_view_mode = UNKNOWN_VIDEO_MODE;
 	//释放资源.
-	if (pColorImage == NULL)
+	if (pColorImage != NULL)
 		delete[] pColorImage;
-	if (pRGBAData == NULL)
+	if (pRGBAData != NULL)
 		delete[] pRGBAData;
-	if (pDepthData == NULL)
+	if (pDepthData != NULL)
 		delete[] pDepthData;
-	if (pPCLData == NULL)
+	if (pPCLData != NULL)
 		delete[] pPCLData;
 	return (rs == LTOF_SUCCESS) ? true : false;
 }
@@ -361,15 +366,26 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, getCurrentVolume)
 	bool ret = true;
 	//static neolix::depthData depthDataTmp = depthData;
 	//depthDataTmp.data = pDepthData;
+	LOGI("	depthData.data:%p",	depthData.data);
+	LOGI("	pclData.data:%p",	pclData.data);
 	if (NULL == depthData.data) {
 		LOGE("no depth data, depthDataTmp.data is NULL!!!!!!!\n");
+		return false;
+	}
+	if (NULL == pclData.data) {
+		LOGE("no pclData data, depthDataTmp.data is NULL!!!!!!!\n");
 		return false;
 	}
 	isCubing = true;
 	LOGI("getCurrentVolume:one frame depth info:w:%d, h:%d, addr:%p\n", depthData.width, depthData.height, depthData.data);
 	//LOGI("center pixel info:%d\n", ((DepthPixel_t *)depthData.data)[depthData.width * depthData.height / 2]);
 	LOGI("invoke method %d\n", method);	
-	ret = neolix::measureVol2(depthData, t, method);
+	//ret = neolix::measureVol2(depthData, t, method);
+	/**/
+	for (int i = 0; i < 9; i++) {
+		LOGI("depth data = %f\n", ((sunnySpectrePCL_t *)pclData.data)[depthData.width * depthData.height / 2].depth);	
+	}
+	ret = neolix::measureVol3(pclData, t, method);
 	isCubing = false;
 	 if (ret)
 	 	LOGI("neolix::measureVol return true!!!height:%f, width:%f, length:%f\n",
