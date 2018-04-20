@@ -37,6 +37,14 @@ BOOL IS_RGBD;
 BOOL IS_RGB;
 
 getDepthFunc_t g_getDepthCallback = NULL;       //指向JNI层获取深度数据的func
+const tofModeOption_t tofModeOption[5] = {
+{false, 1200},
+{false, 650},
+{true, 850},
+{true, 380},
+{true, 250},
+}; 
+const tofUseScene_t curTofUseScene = MODE0_5FPS_1200US;
 
 #define LOG_TAG "sunnySpectreWrapperLog"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
@@ -93,8 +101,8 @@ int connect_mipitof(DeviceInfo_t &devInfo)
 		return ret;
 	}
 	LOGI("invoke simt cam hal interface[%s] start\n", "setTOF_FPS_Mode");
-	LOGI("zhangw:setTOF_FPS_Mode:%d\n", 0);
-	ret = tofObj->setTOF_FPS_Mode(1);
+	LOGI("zhangw:setTOF_FPS_Mode:%d\n", curTofUseScene);
+	ret = tofObj->setTOF_FPS_Mode(curTofUseScene);
 	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "setTOF_FPS_Mode", ret);
 	
 
@@ -123,8 +131,8 @@ int connect_mipitof(DeviceInfo_t &devInfo)
     //使用默认参数配置tof模组
 	//构造spectre运行环境
 #if 1
-	exposure_time = 1200;
-	spectre_use_single_frame(false);
+	exposure_time = tofModeOption[curTofUseScene].expourseTime;
+	spectre_use_single_frame(tofModeOption[curTofUseScene].isMonoFreq);
 	//spectre_init(exposure_time);
 #endif
 	//启动获取数据的线程
