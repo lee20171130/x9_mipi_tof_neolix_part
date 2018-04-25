@@ -39,6 +39,7 @@ void seg(cv::Mat &img,cv::Mat &img1,cv::Mat &img2,const int &rows,const int &col
 void Getxy(const float PixLength,const float PixWidth,short distance,float &Length,float &Width);
 void Getxyz2(cv::vector<cv::Point2f> point,short distance,float &Length,float &Width);
 unsigned short calculateDepthFromDepthImagInRangeCountour(cv::Mat &depthIamge, cv::vector<cv::Point> &contour,double &confidence,unsigned short &minDepth);
+
 unsigned short calculateDepthFromDepthImagOutRangeCountour(cv::Mat &depthIamge, cv::vector<cv::Point> &contour,double &confidence);
 void getBigerRect(cv::Rect rect, cv::Point point);
 //校准相机到测量平台的距离

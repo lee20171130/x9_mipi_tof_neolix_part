@@ -132,7 +132,7 @@ int connect_mipitof(DeviceInfo_t &devInfo)
 	//构造spectre运行环境
 #if 1
 	exposure_time = tofModeOption[curTofUseScene].expourseTime;
-	spectre_use_single_frame(tofModeOption[curTofUseScene].isMonoFreq);
+	//spectre_use_single_frame(tofModeOption[curTofUseScene].isMonoFreq);
 	//spectre_init(exposure_time);
 #endif
 	//启动获取数据的线程
@@ -228,9 +228,10 @@ int sunny_raw2pcl_produce(void)
 	} 
 	memset(pNeolixDepthData,0,sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H); 
 	//调用sunny_spectre
-	spectre_init(exposure_time);
-	spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t)); 
-	spectre_deinit();
+	spectre_produce4neolix(0, pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
+	//spectre_init(exposure_time);
+	//spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t)); 
+	//spectre_deinit();
 	//转换为新石器需要的深度数据
 	 static int i,j;
 	//按x,y,z顺序保存深度数据
@@ -240,7 +241,7 @@ int sunny_raw2pcl_produce(void)
                 {
 				
 					if (pNeolixDepthData != NULL)  { 
-						pNeolixDepthData[i*224+j] = (DepthPixel_t)((pSunnySpectrePCLData[i*224+j].depth)*1000);  //原生的数据是m,最好转换为mm
+						pNeolixDepthData[i*224+j] = (DepthPixel_t)((pSunnySpectrePCLData[i*224+j].z)*1000);  //原生的数据是m,最好转换为mm
 					}	
                }
            }

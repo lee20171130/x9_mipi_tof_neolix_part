@@ -186,43 +186,37 @@ NEOLIX_STATUS_LIST calBoundingRectangle(cv::Mat srcImage, cv::Vector<cv::Point> 
 
 NEOLIX_STATUS_LIST  PopRang(cv::Mat &srcImg,cv::vector<cv::Point>& contour,float &PixLength,float &PixWidth,cv::vector<cv::Point2f> &point)
 {
-
-
-
-
 	//=================获取深度图轮廓分离图=======================
 	cv::Mat dstimg,dst2;
 	cv::Mat srcimg = srcImg.clone();
 	SizeGet(srcimg , dstimg);
 	//=================获取深度图轮廓分离图=======================
 
-
-
 	//===================形态学运算，弥补轮廓缺陷=================
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 	morphologyEx(dstimg,dst2, cv::MORPH_CLOSE, element);
 	//===================形态学运算，弥补轮廓缺陷=================
 
-
-
 	//===================查找轮廓并寻找最大轮廓===================
 	cv::vector<cv::vector<cv::Point> > contours;
-    cv:: vector<cv::Vec4i> hierarchy;
+    	cv:: vector<cv::Vec4i> hierarchy;
 	findContours( dst2 , contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cv::Point(0, 0) );
 
 	//是否查找到轮廓判断
-	if (0 == contours.size())return NEOLIX_FALSE;
+	if (0 == contours.size()) 
+		return NEOLIX_CANOT_FIND_CONTOURS;	//the new way by zc on 20180419
+		//return NEOLIX_FALSE; 			//the old way 
 
 	float a[4]={0};
 	double  Max_sizeArea=0;
 	int  Max_sizeId=0;
-    for( size_t i = 0; i < contours.size(); i++ )
-     {
+    	for( size_t i = 0; i < contours.size(); i++ )
+    	{
 
 		 if(Max_sizeArea<contourArea(contours[i]))
 		 {
 			 Max_sizeId=i;
-			 Max_sizeArea=contourArea(contours[i]);
+		 Max_sizeArea=contourArea(contours[i]);
 		 }
      }
 ///	drawContours(dst2,contours,Max_sizeId,Scalar(255,255,255),5);
@@ -247,7 +241,6 @@ NEOLIX_STATUS_LIST  PopRang(cv::Mat &srcImg,cv::vector<cv::Point>& contour,float
 
 	//===================查找最小外包矩形轮廓=====================
 
-
 	//==================重定位缩放矩形区域===================
 
 		cv::RotatedRect rec;
@@ -267,9 +260,6 @@ NEOLIX_STATUS_LIST  PopRang(cv::Mat &srcImg,cv::vector<cv::Point>& contour,float
 		point.push_back(p);
 		}
 
-
-
-
 	//=======================调试轮廓信息===========================
 	/*
 	cv::Point i;
@@ -287,6 +277,7 @@ NEOLIX_STATUS_LIST  PopRang(cv::Mat &srcImg,cv::vector<cv::Point>& contour,float
 	double judge = CompareArea(a[0]*a[1],cv::contourArea(contours[Max_sizeId]));
 
 
+/*
 	if(judge > 0.75)
 	{
 		std::cout << "---------------------" <<std::endl;
@@ -294,7 +285,7 @@ NEOLIX_STATUS_LIST  PopRang(cv::Mat &srcImg,cv::vector<cv::Point>& contour,float
 		std::cout << "---------------------" <<std::endl;
 	return NEOLIX_FALSE;
 	}
-
+*/
 
 
 	contour = contours[Max_sizeId];

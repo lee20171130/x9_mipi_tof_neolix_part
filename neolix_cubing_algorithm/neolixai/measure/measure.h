@@ -12,7 +12,7 @@ NEOLIX_STATUS_LIST measureBox(IN_ const cv::Mat depthImage,
 				OUT_ float &length,
 				OUT_ float &width,
 				OUT_ float &height,
-                OUT_ float &minDepth_,
+               			OUT_ float &minDepth_,
                 IN_ bool flage,// 用来标记是用实时的平面建模测量，还提前把平面模型建立好在测量，结果就是测量的范围会不同，先建模后测量的范围会大一写
 				IN_  bool  visual = false,
 				IN_  bool  useRect = true);

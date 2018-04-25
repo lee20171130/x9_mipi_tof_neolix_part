@@ -201,6 +201,8 @@ unsigned short calculateDepthFromDepthImagInRangeCountour(cv::Mat &depthIamge, s
 		shortIamge = depthIamge.clone();
 	}
 
+  	//medianBlur(shortIamge , shortIamge , 5); //Attention: when 3th para is 7, crash!  
+
 	for (int row = 0; row < shortIamge.rows; row++)
 	{
 		auto rowPtr = shortIamge.ptr<short>(row);
@@ -211,10 +213,13 @@ unsigned short calculateDepthFromDepthImagInRangeCountour(cv::Mat &depthIamge, s
 	}
 
 	caldepth depthHist(&depthPoints);
+
 	depthHist.calDepthHist();
+
     unsigned short d =    depthHist.getdepth(confidence);
-  //  unsigned short d2 = depthHist.getMa
+
     mindepth = depthHist.getMinDepth();
+
 	///std::cout << "max depth" << depthHist.getMaxDepth() << std::endl;
 	return d;
 }
@@ -573,20 +578,17 @@ int leastSquareEquation(const cv::Mat depthImage, cv::Mat &dest)
 
 void Getavepaddis(std::vector<cv::Point2f> point ,const double a[],double &paddis)
 {
-	/**
-	*平面方程 z = x*a[0] + y *a[1] + a[2]
-	*/
-	/*
-	*2017.12.18.debugu:将平面的坐标系统一，解决平面与摄像头X-Y面不平行的问题
-	*/
-    int left_x = g_rect_para.at<int>(0, 0);
-    int left_y = g_rect_para.at<int>(1, 0);
+	//z = x*a[0] + y *a[1] + a[2]
+	
+    	int left_x = g_rect_para.at<int>(0, 0);
+    	int left_y = g_rect_para.at<int>(1, 0);
 	paddis = 0;
 	double high;
+
 	for(size_t i=0 ; i<point.size();i++)
 	{
-        high = a[0]*(point[i].x + left_x )+a[1]*(point[i].y + left_y)+a[2];
-        //high = a[0] * (point[i].x ) + a[1] * (point[i].y ) + a[2];
+        	high = a[0]*(point[i].x + left_x )+a[1]*(point[i].y + left_y)+a[2];
+      
 		paddis+=high;
 	}
 	paddis = paddis/point.size();
@@ -607,17 +609,36 @@ void LUT( cv::Mat depth1, ushort table[], cv::Mat &depth2)
 
 int selectedDepthPointFromDepthImage(pointcloud<double> &depthPoints, cv::Mat &depthImage, cv::Rect maxRect, cv::Rect minRect)
 {
+
+
+    cv::Mat depthcopyImage;
+    
+    depthImage.copyTo(depthcopyImage);
+
+    //medianBlur(depthcopyImage , depthcopyImage , 5); //add by zhangchao, because there are some noise 
+
     cv::Mat shortImage;
+
 
     if(maxRect.area() < minRect.area()) return -1;
 
-
+/*
     if (depthImage.type() != CV_16SC1)
     {
         depthImage.convertTo(shortImage, CV_16SC1);
     }else
     {
         shortImage = depthImage.clone();
+    }
+*/
+    if (depthcopyImage.type() != CV_16SC1)
+    {
+        depthcopyImage.convertTo(shortImage, CV_16SC1);
+
+    }else
+    {
+        shortImage = depthcopyImage.clone();
+
     }
 
     cv::Point2i point;

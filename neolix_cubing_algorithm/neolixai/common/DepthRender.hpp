@@ -96,7 +96,18 @@ public:
                 }
                 ClearInvalidArea(dst, filtered_mask);
 
-                return dst;
+		/**Debug start info by zhangchao on 20180410*/
+ 		rectangle(dst,cv::Rect(dst.cols/4,dst.rows/4,dst.cols/2,dst.rows/2),cvScalar(255,255,255),2,8,0);
+
+
+		//cv::circle(dst, cv::Point(dst.cols/2 - dst.cols/6, dst.rows/2), 3, cv::Scalar(255, 255, 255),3);
+
+		rectangle(dst,cv::Rect(dst.cols/2-5, dst.rows/2-5, 11, 11),cvScalar(255,255,255),2,8,0);
+
+		//cv::circle(dst, cv::Point(5, 5), 3, cv::Scalar(255, 255, 255),3);
+		/*Debug end info by zhangchao on 20180410*/                
+		
+		return dst;
             }
 
 private:

@@ -24,10 +24,9 @@ namespace neolix {
         {
             cv::Mat plane;
             double *model;
-            if(leastSquareEquationForPointCloud(&points, plane) < 0)return NEOLIX_FALSE;
+            if(leastSquareEquationForPointCloud(&points, plane) < 0)  return NEOLIX_FALSE;
             model = plane.ptr<double>();
             g_plane_para_least = (cv::Mat_<double>(3,1)<<model[0],model[1],model[2]);
-
 
         }
         else if (1 == method) {

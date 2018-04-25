@@ -11,10 +11,10 @@ include $(PREBUILT_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := sunnySpectreWrapper
 ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
-LOCAL_SRC_FILES := ./pmd_sdk/arm64-v8a/libsunnySpectreWrapper.so
+LOCAL_SRC_FILES := ./sunny_sdk_wrapper/arm64-v8a/libsunnySpectreWrapper.so
 #NDK_APP_DST_DIR := ./pmd_sdk/arm64-v8a/
 else
-LOCAL_SRC_FILES := ./pmd_sdk/armeabi-v7a/libsunnySpectreWrapper.so
+LOCAL_SRC_FILES := ./sunny_sdk_wrapper/armeabi-v7a/libsunnySpectreWrapper.so
 #NDK_APP_DST_DIR := ./pmd_sdk/armeabi-v7a/
 endif
 include $(PREBUILT_SHARED_LIBRARY)

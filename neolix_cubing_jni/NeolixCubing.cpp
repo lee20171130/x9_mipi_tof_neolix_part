@@ -21,7 +21,7 @@ typedef enum {
 #define EXTAND_FUNC_NAME(class_name, func_name) JNI_FUNC_NAME(class_name, func_name)
 
 //camera的内参,暂时写死,可以拿到,算法需要
-static  double internalCoefficient[] = {215.867493,215.867493,111.951950,86.562271};
+static  double internalCoefficient[] = {215.867488,215.867488,111.951952,86.562272};
 //static  double internalCoefficient[] = {216.366592,216.764084,113.697975,86.6220627};  //mars04 rgbd
 //算法需要的结构{frame.width, frame.height, frame.data}
 //主要使用opencv进行转换,如:深度->伪彩 yuv420p->rgb
@@ -380,12 +380,9 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, getCurrentVolume)
 	LOGI("getCurrentVolume:one frame depth info:w:%d, h:%d, addr:%p\n", depthData.width, depthData.height, depthData.data);
 	//LOGI("center pixel info:%d\n", ((DepthPixel_t *)depthData.data)[depthData.width * depthData.height / 2]);
 	LOGI("invoke method %d\n", method);	
-	//ret = neolix::measureVol2(depthData, t, method);
-	/**/
-	for (int i = 0; i < 9; i++) {
-		LOGI("depth data = %f\n", ((sunnySpectrePCL_t *)pclData.data)[depthData.width * depthData.height / 2].depth);	
-	}
-	ret = neolix::measureVol3(pclData, t, method);
+	ret = neolix::measureVol2(depthData, t, method);
+
+	//ret = neolix::measureVol3(pclData, t, method);
 	isCubing = false;
 	 if (ret)
 	 	LOGI("neolix::measureVol return true!!!height:%f, width:%f, length:%f\n",

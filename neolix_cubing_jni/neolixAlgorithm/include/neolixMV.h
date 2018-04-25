@@ -28,6 +28,7 @@ namespace neolix
         float        x;
         float        y;
         float        z;
+	float 	     depth;
     }point3Df;
    typedef struct DEPTHDADA
    {

@@ -20,6 +20,8 @@ namespace neolix{
      cv::Mat g_plane_ransca;//随机一致性抽样算法获得的平面参数
      cv::Mat g_cammer_intrinic;//内参
      cv::Mat g_plane_rect;//小区域
+
+     
      short g_fix_length = 0;
      short g_fix_width  = 0;
      short g_fix_height = 0;
@@ -31,9 +33,9 @@ namespace neolix{
      g_fix_height = fix_height;
      g_fix_width  = fix_width;
  }
+/* backup
 bool measureVol3(pointcloudData pointCloud, vol &v, int method)
 {
-#if 0
     cv::Rect minRect(g_plane_rect.at<int>(0,0),g_plane_rect.at<int>(1,0),g_plane_rect.at<int>(2,0),g_plane_rect.at<int>(3,0));
     cv::Rect maxRect(g_rect_para.at<int>(0,0),g_rect_para.at<int>(1,0),g_rect_para.at<int>(2,0),g_rect_para.at<int>(3,0));
     rotatePlane rp;
@@ -62,30 +64,142 @@ bool measureVol3(pointcloudData pointCloud, vol &v, int method)
     v.length += g_fix_length ;
     v.width += g_fix_width;
     v.height += g_fix_height;
-#else
-    v.length = 66;
-    v.width = 77;
-    v.height = 99;
-#endif
     return true;
 
 }
+*/
 
+#define DEBUG_ERRORCODE
+
+bool measureVol3(pointcloudData pointCloud, vol &v, int method)
+{
+	point3Df *origdata = (point3Df *)(pointCloud.data);
+
+	int nW = pointCloud.width;
+	int nH = pointCloud.height;
+
+	//malloc the memory
+	float * xData     = (float *)malloc(nW * nH * sizeof(float));
+        float * yData     = (float *)malloc(nW * nH * sizeof(float));
+        float * depthData = (float *)malloc(nW * nH * sizeof(float));
+ 	short * data      = (short *)malloc(nW * nH * sizeof(short));
+
+	//reset the memory
+	memset(xData,     0, nW * nH * sizeof(float));
+	memset(yData,     0, nW * nH * sizeof(float));
+	memset(depthData, 0, nW * nH * sizeof(float));
+	memset(data,      0, nW * nH * sizeof(short));
+
+	//abstract the x/y/depth into their own memory
+	int ix = 0, iy = 0, nIndex = 0;
+
+	int nSum = 0;
+
+	for (iy = 0; iy < nH; iy++)
+	{
+		for (ix = 0; ix < nW; ix++)
+		{
+			xData[nIndex]     = origdata[nIndex].x;
+			yData[nIndex]     = origdata[nIndex].y;
+			depthData[nIndex] = origdata[nIndex].depth;
+			data[nIndex]      = (short)(origdata[nIndex].depth * 1000);
+
+			if (data[nIndex] != 0)
+				nSum++; 
+			nIndex++;
+		}
+	}
+
+	//Transform the data type into 'cv::Mat'
+	cv::Mat d = cv::Mat(nH, nW, CV_16UC1, data);
+		
+	//To reconstruct the ground plane
+	if(NEOLIX_FALSE == reconstructionPlane(d, method))
+	{
+#ifdef DEBUG_ERRORCODE
+		v.length = nSum;//data[nW*(nH/2)+(nW/2-1)];//66666.11111;
+		v.width =  data[nW*(nH/2)+(nW/2)];//66666.11111;
+		v.height = data[nW*(nH/2)+(nW/2+1)];//66666.11111;
+		free(xData), free(yData), free(depthData),free(data);
+		return true;
+#else
+		free(xData), free(yData), free(depthData),free(data);
+		return false;
+#endif
+	}
+
+	double plane_para[3] = {0};
+ 	float length, width,height, minDepth;
+
+	if( 1 == method)
+	{
+		plane_para[0] = g_plane_ransca.at<double>(0,0);
+		plane_para[1] = g_plane_ransca.at<double>(1,0);
+		plane_para[2] = g_plane_ransca.at<double>(2,0);
+	}else	//this way debug by zc on 20180417
+	{
+		plane_para[0] = g_plane_para_least.at<double>(0,0);
+		plane_para[1] = g_plane_para_least.at<double>(1,0);
+		plane_para[2] = g_plane_para_least.at<double>(2,0);
+	}
+	height = -1;
+
+	if( NEOLIX_FALSE == measureBox(d,plane_para,length,width,height,minDepth,false) || height == -1)
+	{
+#ifdef DEBUG_ERRORCODE
+		v.length = 66666.22222, v.width =  66666.22222,	v.height = 66666.22222;
+		free(xData), free(yData), free(depthData),free(data);
+		return true;
+#else
+		free(xData), free(yData), free(depthData),free(data);
+		return false;
+#endif
+	}else{
+	//  std::cout<<"length: "<<length<<"width: "<<width<<"height: "<<height<<std::endl;
+
+		v.length = length + g_fix_length ;
+		v.width  =  width + g_fix_width;
+		v.height = height + g_fix_height;
+
+   		v.minDepth = minDepth;
+		free(xData), free(yData), free(depthData),free(data);
+  		 return true;
+  	}
+/**/
+
+//for debuging
+	free(xData), free(yData), free(depthData),free(data);
+	return true;
+}
+/*
+* method = 0
+*/
  bool measureVol2(depthData depth_, vol &v, int method)
  {
    void* data = malloc(depth_.width*depth_.height*sizeof(short));
    memcpy(data,(void*)depth_.data,depth_.width*depth_.height*sizeof(short));
    cv::Mat d = cv::Mat(depth_.height,depth_.width,CV_16UC1,data);
-   if(NEOLIX_FALSE == reconstructionPlane(d,method)) return false;
+   if(NEOLIX_FALSE == reconstructionPlane(d, method))
+   {
+#ifdef DEBUG_ERRORCODE
+	v.length = 66666.11111;
+	v.width =  66666.11111;
+	v.height = 66666.11111;
+	return true;
+#else
+	return false;
+#endif
+	}
 
    double plane_para[3] = {0};
    float length, width,height, minDepth;
+
     if( 1 == method)
    {
        plane_para[0] = g_plane_ransca.at<double>(0,0);
        plane_para[1] = g_plane_ransca.at<double>(1,0);
        plane_para[2] = g_plane_ransca.at<double>(2,0);
-   }else
+   }else	//this way debug by zc on 20180417
    {
        plane_para[0] = g_plane_para_least.at<double>(0,0);
        plane_para[1] = g_plane_para_least.at<double>(1,0);
@@ -95,12 +209,21 @@ bool measureVol3(pointcloudData pointCloud, vol &v, int method)
 
    if( NEOLIX_FALSE ==  measureBox(d,plane_para,length,width,height,minDepth,false) || height == -1)
    {
-       return false;
+#ifdef DEBUG_ERRORCODE
+	v.length = 66666.22222;
+	v.width =  66666.22222;
+	v.height = 66666.22222;
+	return true;
+#else
+	return false;
+#endif
    }else{
  //  std::cout<<"length: "<<length<<"width: "<<width<<"height: "<<height<<std::endl;
-   v.length = length + g_fix_length ;
-   v.width = width + g_fix_width;
-   v.height = height + g_fix_height;
+
+	v.length = length + g_fix_length ;
+	v.width  =  width + g_fix_width;
+	v.height = height + g_fix_height;
+
    v.minDepth = minDepth;
    return true;
    }
@@ -126,14 +249,18 @@ bool measureVol(depthData depth_,vol &v, int method)
     }
     height = -1;
 
+
+  int left_x = g_rect_para.at<int>(0, 0);
+    int left_y = g_rect_para.at<int>(1, 0);
+
     if( NEOLIX_FALSE ==  measureBox(d,plane_para,length,width,height,minDepth,true) || height == -1)
     {
         return false;
     }else{
-  //  std::cout<<"length: "<<length<<"width: "<<width<<"height: "<<height<<std::endl;
-    v.length = length + g_fix_length ;
-    v.width = width + g_fix_width;
-    v.height = height + g_fix_height;
+	v.length = length + g_fix_length ;
+	v.width = width + g_fix_width;
+	v.height = height + g_fix_height; 
+
     v.minDepth = minDepth;
     return true;
     }
@@ -395,7 +522,7 @@ void UptateComfigToXml(cv::Mat &data, STORM_FLAG flag)
         mats.push_back(tMat);
     }
     fr.release();
-    cv::FileStorage fwf("./configFile/config.yml",cv::FileStorage::WRITE);
+    cv::FileStorage fwf("./configFileselectedDepthPointFromDepthImage/config.yml",cv::FileStorage::WRITE);
     for(int i = 0;  i < flagNunber; i++)
     {
         fwf<<configNames[i]<<mats[i];
@@ -411,6 +538,11 @@ void getDepthColor(depthData depth_,void *buff)
     cv::Mat d = cv::Mat(depth_.height,depth_.width,CV_16UC1,data);
     DepthRender render ;
     cv::Mat depthColorMat = render.Compute(d);
+  
+   //memset(buff, 0, depthColorMat.rows*depthColorMat.cols*3*sizeof(uchar));
+
+ 	//drawContours(depthColorMat, g_contours, -1, Scalar(255, 0, 255));
+
     memcpy(buff, (void*)depthColorMat.data, depthColorMat.rows*depthColorMat.cols*3*sizeof(uchar));
 
 }
