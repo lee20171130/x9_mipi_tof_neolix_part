@@ -44,7 +44,7 @@ const tofModeOption_t tofModeOption[5] = {
 {true, 380},
 {true, 250},
 }; 
-const tofUseScene_t curTofUseScene = MODE0_5FPS_1200US;
+const tofUseScene_t curTofUseScene = MODE1_10FPS_650US;
 
 #define LOG_TAG "sunnySpectreWrapperLog"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
@@ -228,7 +228,7 @@ int sunny_raw2pcl_produce(void)
 	} 
 	memset(pNeolixDepthData,0,sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H); 
 	//调用sunny_spectre
-	spectre_produce4neolix(0, pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
+	spectre_produce4neolix(exposure_time, pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
 	//spectre_init(exposure_time);
 	//spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t)); 
 	//spectre_deinit();
