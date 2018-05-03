@@ -44,7 +44,7 @@ const tofModeOption_t tofModeOption[5] = {
 {true, 380},
 {true, 250},
 }; 
-const tofUseScene_t curTofUseScene = MODE1_10FPS_650US;
+const tofUseScene_t curTofUseScene = MODE0_5FPS_1200US;
 
 #define LOG_TAG "sunnySpectreWrapperLog"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
@@ -129,6 +129,7 @@ int connect_mipitof(DeviceInfo_t &devInfo)
             ,DEPTHMAP_W,DEPTHMAP_H,DEPTHVIDEO_W,DEPTHVIDEO_H);
 #endif
     //使用默认参数配置tof模组
+   
 	//构造spectre运行环境
 #if 1
 	exposure_time = tofModeOption[curTofUseScene].expourseTime;
@@ -182,6 +183,32 @@ int set_mipitof_usecase(usecase_t ucase)
 	int ret = 0;
 	return ret;
 }
+int genE2promFile(void)
+{
+	int ret = 0;
+	//产生eeprom文件
+	LOGI("invoke simt cam hal interface[%s] start\n", "tof_eeprom_enable");
+	ret = tofObj->tof_eeprom_enable();
+    LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "tof_eeprom_enable", ret);
+	return ret;
+}
+int getTofLensParam(double *pLensParam)
+{
+	int ret = 0;
+	static float LensParam[9];
+	//获得tof的内参
+	LOGI("invoke spectreGetTofLensParam\n");
+    ret = spectreGetTofLensParam(LensParam);
+	LOGI("invoke spectreGetTofLensParam end, ret=[%d]\n",ret);
+	if (ret) {
+		for (int i = 0; i < 9; i++) {
+			pLensParam[i] = (double)LensParam[i];
+			LOGI("pLensParam[%d] = %d\n", i, pLensParam[i]);
+		}
+	}
+	return ret;
+}
+
 void* process_mipitof_data(void* param)
 {
 	 while (!thread_exit)

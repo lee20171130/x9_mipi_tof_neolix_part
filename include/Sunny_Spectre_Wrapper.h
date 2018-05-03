@@ -55,6 +55,8 @@ typedef void (*getDepthFunc_t)(tofSensorAllData_t&);
 
 namespace sunny {
 	void setPreviewStatus(PREVIEW_STATUS sta);
+	int genE2promFile(void);
+	int getTofLensParam(double *pLensParam);
 	void registerJNIGetDepthCB(getDepthFunc_t getDepth);
 	int connect_mipitof(DeviceInfo_t &devInfo);
 	int disconnect_mipitof();

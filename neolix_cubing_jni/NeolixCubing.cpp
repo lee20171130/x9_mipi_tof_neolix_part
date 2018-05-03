@@ -21,7 +21,7 @@ typedef enum {
 #define EXTAND_FUNC_NAME(class_name, func_name) JNI_FUNC_NAME(class_name, func_name)
 
 //camera的内参,暂时写死,可以拿到,算法需要
-static  double internalCoefficient[] = {215.867488,215.867488,111.951952,86.562272};
+static  double internalCoefficient[9] = {215.867488,215.867488,111.951952,86.562272};
 //static  double internalCoefficient[] = {216.366592,216.764084,113.697975,86.6220627};  //mars04 rgbd
 //算法需要的结构{frame.width, frame.height, frame.data}
 //主要使用opencv进行转换,如:深度->伪彩 yuv420p->rgb
@@ -305,6 +305,19 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, SetSafeArea)
 		safeZone.height = height;
 		return ret;
  }
+/*
+ * Class:     com_neolix_neolixcubing_NeolixCubing
+ * Method:    SetSafeArea
+ * Signature: (IIII)Z
+ */
+jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, eepromFileDebug)
+   (JNIEnv *je, jclass jc)
+ {
+        bool ret = true;
+        LOGI("user want to get tof related eeprom file\n");
+		ret = sunny::genE2promFile();
+		return ret;
+ }
 
 /*
  * Class:     com_neolix_neolixcubing_NeolixCubing
@@ -331,9 +344,13 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, SetMeasureArea)
 		  measureZone.left_y,
 		  measureZone.width,
 		  measureZone.height);
-		  for (int i = 0; i < 4; i++)
+		  LOGI("get tof lens param\n");
+		  sunny::getTofLensParam(internalCoefficient);
+		  for (int i = 0; i < 4; i++) {
+		  		internalCoefficient[i] = internalCoefficient[i] / 1000000;
 		  		  LOGI("internalCoefficient[%d]=%f ", i, internalCoefficient[i]);
-		  ret = neolix::setArea(safeZone, measureZone,internalCoefficient, 4);
+		  	}
+		  	ret = neolix::setArea(safeZone, measureZone,internalCoefficient, 4);
 			if (!ret) {
 			LOGE("set Area fail!!\n");
 			return ret;
@@ -380,9 +397,9 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, getCurrentVolume)
 	LOGI("getCurrentVolume:one frame depth info:w:%d, h:%d, addr:%p\n", depthData.width, depthData.height, depthData.data);
 	//LOGI("center pixel info:%d\n", ((DepthPixel_t *)depthData.data)[depthData.width * depthData.height / 2]);
 	LOGI("invoke method %d\n", method);	
-	ret = neolix::measureVol2(depthData, t, method);
+	//ret = neolix::measureVol2(depthData, t, method);
 
-	//ret = neolix::measureVol3(pclData, t, method);
+	ret = neolix::measureVol3(pclData, t, method);
 	isCubing = false;
 	 if (ret)
 	 	LOGI("neolix::measureVol return true!!!height:%f, width:%f, length:%f\n",

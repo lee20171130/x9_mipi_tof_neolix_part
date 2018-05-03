@@ -24,6 +24,7 @@ enum FMT_TYPE {
 
 
 
+extern int spectreGetTofLensParam(float *pLensParam); 
 extern int spectre_produce4neolix(unsigned int exposureTime, void *pdata, int data_len); 
 
 
