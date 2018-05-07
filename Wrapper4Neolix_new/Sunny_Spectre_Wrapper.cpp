@@ -66,6 +66,44 @@ void registerJNIGetDepthCB(getDepthFunc_t getDepthCallback)
 	else 
 		LOGI("registerJNIGetDepthCB:fail callback is nullptr!!!\n");
 }
+int startPreview()
+{
+	int ret = 0;
+	LOGI("invoke simt cam hal interface[%s] start\n", "get_num_cameras");
+	ret = tofObj->get_num_cameras();
+	printf("zhangw add:get camera num is %d\n",ret);
+	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "get_num_cameras", ret);
+	
+	LOGI("invoke simt cam hal interface[%s] start\n", "camera_open");
+	LOGI("zhangw:open camera id:%d\n", sensorIdx);
+	ret = tofObj->camera_open(sensorIdx);
+	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "camera_open", ret);
+	if (ret) {
+		LOGI("%s[%d]:%s,errno[%d]\n", __func__, __LINE__, "open camera failed!!", ret);
+		return ret;
+	}
+	LOGI("invoke simt cam hal interface[%s] start\n", "setTOF_FPS_Mode");
+	LOGI("zhangw:setTOF_FPS_Mode:%d\n", curTofUseScene);
+	ret = tofObj->setTOF_FPS_Mode(curTofUseScene);
+	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "setTOF_FPS_Mode", ret);
+	//构造spectre运行环境
+	exposure_time = tofModeOption[curTofUseScene].expourseTime;
+	IS_Running = true; 
+	return ret;
+}
+int stopPreview()
+{
+	int ret = 0;
+	LOGI("=============in %s\n", __func__);
+	//停止读取stream线程
+	IS_Running=FALSE;
+	//关闭vcsel
+	LOGI("invoke simt cam hal interface[%s] start\n", "camera_close");
+	ret = tofObj->camera_close();
+    LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "camera_close", ret);
+	LOGI("=============out %s\n", __func__);
+	return ret;
+}
 /*
 	author:zhangw
 	date:2018年3月6日
@@ -87,26 +125,6 @@ int connect_mipitof(DeviceInfo_t &devInfo)
 		return -1;
 	}
 	pTof4Sunny = tofObj;
-	LOGI("invoke simt cam hal interface[%s] start\n", "get_num_cameras");
-	ret = tofObj->get_num_cameras();
-	printf("zhangw add:get camera num is %d\n",ret);
-	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "get_num_cameras", ret);
-	
-	LOGI("invoke simt cam hal interface[%s] start\n", "camera_open");
-	LOGI("zhangw:open camera id:%d\n", sensorIdx);
-	ret = tofObj->camera_open(sensorIdx);
-	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "camera_open", ret);
-	if (ret) {
-		LOGI("%s[%d]:%s,errno[%d]\n", __func__, __LINE__, "open camera failed!!", ret);
-		return ret;
-	}
-	LOGI("invoke simt cam hal interface[%s] start\n", "setTOF_FPS_Mode");
-	LOGI("zhangw:setTOF_FPS_Mode:%d\n", curTofUseScene);
-	ret = tofObj->setTOF_FPS_Mode(curTofUseScene);
-	LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "setTOF_FPS_Mode", ret);
-	
-
-	
 	//获取当前TOF模组的信息,如:分辨率,标定信息
 	deviceinfo = new DeviceInfo_t;
     memset(deviceinfo, 0, sizeof(DeviceInfo_t));
@@ -128,15 +146,31 @@ int connect_mipitof(DeviceInfo_t &devInfo)
 	LOGI("Depth Data:w-%d h-%d \nvisiableData:w-%d h-%d \n"
             ,DEPTHMAP_W,DEPTHMAP_H,DEPTHVIDEO_W,DEPTHVIDEO_H);
 #endif
-    //使用默认参数配置tof模组
-   
-	//构造spectre运行环境
-#if 1
-	exposure_time = tofModeOption[curTofUseScene].expourseTime;
-	//spectre_use_single_frame(tofModeOption[curTofUseScene].isMonoFreq);
-	//spectre_init(exposure_time);
-#endif
-	//启动获取数据的线程
+	//为sunny点云数据分配缓存,包含点云和depth数据.
+	if (pSunnySpectrePCLData == NULL) {
+		LOGI("%s: malloc for sunny spectre pcl data\n", __func__);
+		pSunnySpectrePCLData=(sunnySpectrePCL_t*)malloc(sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
+		if (NULL == pSunnySpectrePCLData) {
+			LOGI("%s: malloc sunny spectre pcl data fail\n", __func__);
+			return LTOF_ERROR_NO_MEM;
+		}
+		LOGI("[frame_data]w:%d, h:%d, size:%d sum:%d\n", DEPTHMAP_W,DEPTHMAP_H,sizeof(sunnySpectrePCL_t), DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
+		LOGI("[frame_data]addr:%p, size:%d\n", pSunnySpectrePCLData, sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
+	}
+    memset(pSunnySpectrePCLData,0,sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
+	//为neolix深度数据分配缓存
+	if (pNeolixDepthData == NULL) {
+		LOGI("%s: malloc for neolixdepth data\n", __func__);
+		pNeolixDepthData=(DepthPixel_t*)malloc(sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H);
+		if (NULL == pNeolixDepthData) {
+			LOGI("%s: malloc pNeolixDepthData fail\n",__func__);
+			return LTOF_ERROR_NO_MEM;
+		}
+		LOGI("[neolix depth data] addr:%p, size:%d\n", pNeolixDepthData, sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H);
+	} 
+	memset(pNeolixDepthData,0,sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H); 
+
+    //启动获取数据的线程
 	thread_exit = FALSE;
 	IS_Running = FALSE;
     //创建取数据线程
@@ -155,15 +189,18 @@ int disconnect_mipitof()
 		thread_exit = TRUE;
 		pthread_join(pth_get_data, NULL);
 		LOGI("thread exit success!!\n");
-	//关闭算法环境
-	//spectre_deinit();
 	//关闭底层camera
-	LOGI("invoke simt cam hal interface[%s] start\n", "camera_close");
-	ret = tofObj->camera_close();
-	//delete tofObj;
-    LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "camera_close", ret);
+	LOGI("invoke simt cam hal interface[%s] start\n", "camera_destructor");
+	if (tofObj != NULL)
+		delete tofObj;
+    LOGI("invoke simt cam hal interface[%s] end, ret=[%d]\n", "camera_destructor", ret);
 	//释放分配的内存
-	
+	if (pSunnySpectrePCLData != NULL) 
+		free(pSunnySpectrePCLData);
+	if (pNeolixDepthData != NULL)
+		free(pNeolixDepthData);
+	pSunnySpectrePCLData = NULL;
+	pNeolixDepthData = NULL;
 	LOGI("=============off disconnect_mipitof\n");
 	return ret;
 }
@@ -219,6 +256,7 @@ void* process_mipitof_data(void* param)
             continue;
         }
 		sunny_raw2pcl_produce();
+		//usleep(1000*200);
 #if 0
 		float tmp = tofObj->get_tof_temp();
 		LOGI("tofObj->get_tof_temp() %f\n", tmp);
@@ -231,34 +269,9 @@ void* process_mipitof_data(void* param)
 int sunny_raw2pcl_produce(void)
 {
 	int ret = 0;
-	//为sunny点云数据分配缓存,包含点云和depth数据.
-	if (pSunnySpectrePCLData == NULL) {
-		LOGI("%s: malloc for sunny spectre pcl data\n", __func__);
-		pSunnySpectrePCLData=(sunnySpectrePCL_t*)malloc(sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
-		if (NULL == pSunnySpectrePCLData) {
-			LOGI("%s: malloc sunny spectre pcl data fail\n", __func__);
-			return LTOF_ERROR_NO_MEM;
-		}
-		LOGI("[frame_data]w:%d, h:%d, size:%d sum:%d\n", DEPTHMAP_W,DEPTHMAP_H,sizeof(sunnySpectrePCL_t), DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
-		LOGI("[frame_data]addr:%p, size:%d\n", pSunnySpectrePCLData, sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
-	}
-    memset(pSunnySpectrePCLData,0,sizeof(sunnySpectrePCL_t)*DEPTHMAP_W*DEPTHMAP_H);
-	//为neolix深度数据分配缓存
-	if (pNeolixDepthData == NULL) {
-		LOGI("%s: malloc for neolixdepth data\n", __func__);
-		pNeolixDepthData=(DepthPixel_t*)malloc(sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H);
-		if (NULL == pNeolixDepthData) {
-			LOGI("%s: malloc pNeolixDepthData fail\n",__func__);
-			return LTOF_ERROR_NO_MEM;
-		}
-		LOGI("[neolix depth data] addr:%p, size:%d\n", pNeolixDepthData, sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H);
-	} 
-	memset(pNeolixDepthData,0,sizeof(DepthPixel_t)*DEPTHMAP_W*DEPTHMAP_H); 
+
 	//调用sunny_spectre
 	spectre_produce4neolix(exposure_time, pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t));
-	//spectre_init(exposure_time);
-	//spectre_produce(pSunnySpectrePCLData, DEPTHMAP_W*DEPTHMAP_H*sizeof(sunnySpectrePCL_t)); 
-	//spectre_deinit();
 	//转换为新石器需要的深度数据
 	 static int i,j;
 	//按x,y,z顺序保存深度数据

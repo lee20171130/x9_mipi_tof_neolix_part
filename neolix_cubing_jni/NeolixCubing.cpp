@@ -21,15 +21,11 @@ typedef enum {
 #define EXTAND_FUNC_NAME(class_name, func_name) JNI_FUNC_NAME(class_name, func_name)
 
 //camera的内参,暂时写死,可以拿到,算法需要
-static  double internalCoefficient[9] = {215.867488,215.867488,111.951952,86.562272};
-//static  double internalCoefficient[] = {216.366592,216.764084,113.697975,86.6220627};  //mars04 rgbd
-//算法需要的结构{frame.width, frame.height, frame.data}
+static  double internalCoefficient[9] = {0};
 //主要使用opencv进行转换,如:深度->伪彩 yuv420p->rgb
 static neolix::depthData depthData;
 static neolix::depthData yuvData;
 static neolix::pointcloudData pclData;
-//存储算法建模时候的参数.
-//static double parameter[3] = {0.0};
 //存储算法需要的像素坐标
 static neolix::rect safeZone, measureZone;
 static volatile bool isCubing = false;
@@ -161,10 +157,10 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, connectCamera)
   (JNIEnv *env, jclass jc, jobject dev_obj)
 {
 	LOGI("Java_com_neolix_neolixcubing_NeolixCubing_connectCamera\n");
-	TOF_ErrorCode_t rs = LTOF_SUCCESS; 
+	int rs = 0; 
 
-	/*rs =*/ sunny::connect_mipitof(devInfo);
-	if (rs != LTOF_SUCCESS) {
+	rs = sunny::connect_mipitof(devInfo);
+	if (rs) {
 		LOGE("connect_mipitof fail\n");
         return false;
 	}
@@ -243,8 +239,31 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, connectCamera)
 		yuvData.height, 
 		yuvData.width, 
 		sizeof(FrameDataRgb_t)*yuvData.width*yuvData.height);
-	sunny::setPreviewStatus(PREVIEW_START);
 	return true;
+}
+  /*
+ * Class:     com_neolix_neolixcubing_NeolixCubing
+ * Method:    startPreview
+ * Signature: ()Z
+ */
+jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, startPreview)
+(JNIEnv *je, jclass jc)
+{
+	int rs = 0;
+	rs = sunny::startPreview();
+	return (rs == 0) ? true : false;
+}
+/*
+ * Class:     com_neolix_neolixcubing_NeolixCubing
+ * Method:    stopPreview
+ * Signature: ()Z
+ */
+jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, stopPreview)
+(JNIEnv *je, jclass jc)
+{
+	int rs = 0;
+	rs = sunny::stopPreview();
+	return (rs == 0) ? true : false;
 }
 
 /*
@@ -256,10 +275,9 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, disconnectCamera)
 (JNIEnv *je, jclass jc)
 {
 	LOGI("Java_com_neolix_neolixcubing_NeolixCubing_disconnectCamera\n");
-	TOF_ErrorCode_t rs = LTOF_SUCCESS;
+	int rs = 0;
 	sunny::setPreviewStatus(PREVIEW_STOP);
-
-	/*rs =*/ sunny::disconnect_mipitof();
+	rs = sunny::disconnect_mipitof();
 	cur_view_mode = VIEW_VIDEO_MODE; 
 	last_view_mode = UNKNOWN_VIDEO_MODE;
 	//释放资源.
@@ -271,7 +289,11 @@ jboolean JNICALL EXTAND_FUNC_NAME(CLASS_NAME, disconnectCamera)
 		delete[] pDepthData;
 	if (pPCLData != NULL)
 		delete[] pPCLData;
-	return (rs == LTOF_SUCCESS) ? true : false;
+	pColorImage = NULL;
+	pRGBAData = NULL;
+	pDepthData = NULL;
+	pPCLData = NULL;
+	return (rs == 0) ? true : false;
 }
 
 /*
